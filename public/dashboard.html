@@ -1,121 +1,91 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Advanced Hacker Dashboard</title>
+  <title>Dashboard</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
   <style>
     body {
-      background: linear-gradient(135deg, #020617, #0f172a);
+      background: #020617;
       color: #00ffcc;
       font-family: monospace;
-      margin: 0;
-      padding: 20px;
     }
 
     h1 {
       text-align: center;
-      text-shadow: 0 0 20px #00ffcc;
     }
 
-    .typing {
-      border-right: 2px solid #00ffcc;
-      white-space: nowrap;
-      overflow: hidden;
-      animation: typing 3s steps(30), blink 0.7s infinite;
-    }
-
-    @keyframes typing {
-      from { width: 0 }
-      to { width: 100% }
-    }
-
-    @keyframes blink {
-      50% { border-color: transparent }
-    }
-
-    .stats {
-      text-align: center;
+    #map {
+      height: 300px;
       margin: 20px;
-      font-size: 18px;
     }
 
     .card {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(0,255,204,0.3);
-      padding: 15px;
+      border: 1px solid #00ffcc;
       margin: 10px;
-      border-radius: 15px;
-      backdrop-filter: blur(15px);
-      box-shadow: 0 0 15px rgba(0,255,204,0.5);
-      animation: fadeIn 0.5s ease-in;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .blink {
-      animation: blink2 1s infinite;
-    }
-
-    @keyframes blink2 {
-      50% { opacity: 0; }
+      padding: 10px;
     }
   </style>
 </head>
 
 <body>
 
-<h1 class="typing">🖥️ REAL-TIME DEVICE MONITOR <span class="blink">●</span></h1>
+<h1>🌍 DEVICE MONITOR</h1>
 
-<div class="stats">
-  📊 Total Devices Connected: <span id="count">0</span>
-</div>
+<div id="map"></div>
 
 <div id="devices"></div>
 
-<!-- 🔊 Sound -->
-<audio id="alertSound" preload="auto">
-  <source src="https://www.soundjay.com/button/sounds/beep-07.mp3" type="audio/mpeg">
+<audio id="sound">
+  <source src="https://www.soundjay.com/button/sounds/beep-07.mp3">
 </audio>
 
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
   const socket = io(window.location.origin);
-  const sound = document.getElementById("alertSound");
+  const sound = document.getElementById("sound");
 
   let soundEnabled = false;
 
-  // Enable sound after user click
   document.body.addEventListener("click", () => {
     soundEnabled = true;
-    console.log("Sound enabled");
   });
+
+  // 🌍 MAP
+  const map = L.map('map').setView([20, 77], 4);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+    .addTo(map);
 
   socket.on("update-devices", (devices) => {
     const container = document.getElementById("devices");
-    const count = document.getElementById("count");
-
     container.innerHTML = "";
-    count.innerText = devices.length;
 
-    // 🔊 Play sound when new device connects
     if (devices.length > 0 && soundEnabled) {
-      sound.currentTime = 0;
-      sound.play().catch(() => {});
+      sound.play().catch(()=>{});
     }
 
     devices.forEach(d => {
+
+      // 🌍 MAP MARKER
+      if (d.lat && d.lng) {
+        L.marker([d.lat, d.lng]).addTo(map)
+          .bindPopup(d.device);
+      }
+
       const div = document.createElement("div");
       div.className = "card";
+
       div.innerHTML = `
-        <b>DEVICE CONNECTED</b><br><br>
-        OS: ${d.platform}<br>
+        DEVICE: ${d.device}<br>
         SCREEN: ${d.screen}<br>
+        LOCATION: ${d.lat ? d.lat.toFixed(3) + ", " + d.lng.toFixed(3) : "Not allowed"}<br>
         TIME: ${d.time}
       `;
+
       container.appendChild(div);
     });
   });
