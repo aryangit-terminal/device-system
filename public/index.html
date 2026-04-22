@@ -2,17 +2,26 @@
 <html>
 <head>
   <title>Connecting...</title>
+
   <style>
     body {
-      background: black;
+      background: linear-gradient(135deg, #020617, #0f172a);
       color: #00ffcc;
       font-family: monospace;
       text-align: center;
-      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
     }
 
-    .glow {
-      text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc;
+    .box {
+      background: rgba(255,255,255,0.05);
+      padding: 30px;
+      border-radius: 20px;
+      backdrop-filter: blur(15px);
+      box-shadow: 0 0 25px rgba(0,255,204,0.5);
     }
 
     .typing {
@@ -20,6 +29,7 @@
       white-space: nowrap;
       overflow: hidden;
       animation: typing 3s steps(30), blink 0.7s infinite;
+      font-size: 18px;
     }
 
     @keyframes typing {
@@ -30,14 +40,40 @@
     @keyframes blink {
       50% { border-color: transparent }
     }
+
+    .status {
+      margin-top: 15px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .pulse {
+      width: 10px;
+      height: 10px;
+      background: #00ffcc;
+      border-radius: 50%;
+      margin: 10px auto;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 0.5; }
+      100% { transform: scale(1); opacity: 1; }
+    }
   </style>
 </head>
+
 <body>
 
-<h2 class="glow typing">📡 CONNECTING TO SECURE NETWORK...</h2>
-<p class="glow">Scanning device...</p>
+<div class="box">
+  <h2 class="typing">📡 CONNECTING TO SECURE NETWORK...</h2>
+  <div class="pulse"></div>
+  <p class="status">Scanning device & initializing connection...</p>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
+
 <script>
   const socket = io(window.location.origin);
 
@@ -48,6 +84,7 @@
     screen: window.screen.width + "x" + window.screen.height
   };
 
+  // Simulate scanning delay for effect
   setTimeout(() => {
     socket.emit("device-info", deviceInfo);
   }, 2000);
