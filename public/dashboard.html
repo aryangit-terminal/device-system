@@ -1,18 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Advanced Dashboard</title>
+  <title>Advanced Hacker Dashboard</title>
+
   <style>
     body {
-      background: linear-gradient(135deg, #0f172a, #020617);
+      background: linear-gradient(135deg, #020617, #0f172a);
       color: #00ffcc;
       font-family: monospace;
-      backdrop-filter: blur(10px);
+      margin: 0;
+      padding: 20px;
     }
 
     h1 {
       text-align: center;
-      text-shadow: 0 0 15px #00ffcc;
+      text-shadow: 0 0 20px #00ffcc;
+    }
+
+    .typing {
+      border-right: 2px solid #00ffcc;
+      white-space: nowrap;
+      overflow: hidden;
+      animation: typing 3s steps(30), blink 0.7s infinite;
+    }
+
+    @keyframes typing {
+      from { width: 0 }
+      to { width: 100% }
+    }
+
+    @keyframes blink {
+      50% { border-color: transparent }
     }
 
     .stats {
@@ -37,26 +55,19 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .typing {
-      border-right: 2px solid #00ffcc;
-      white-space: nowrap;
-      overflow: hidden;
-      animation: typing 2s steps(30), blink 0.7s infinite;
+    .blink {
+      animation: blink2 1s infinite;
     }
 
-    @keyframes typing {
-      from { width: 0 }
-      to { width: 100% }
-    }
-
-    @keyframes blink {
-      50% { border-color: transparent }
+    @keyframes blink2 {
+      50% { opacity: 0; }
     }
   </style>
 </head>
+
 <body>
 
-<h1 class="typing">🖥️ REAL-TIME DEVICE MONITOR</h1>
+<h1 class="typing">🖥️ REAL-TIME DEVICE MONITOR <span class="blink">●</span></h1>
 
 <div class="stats">
   📊 Total Devices Connected: <span id="count">0</span>
@@ -64,14 +75,24 @@
 
 <div id="devices"></div>
 
-<audio id="alertSound">
+<!-- 🔊 Sound -->
+<audio id="alertSound" preload="auto">
   <source src="https://www.soundjay.com/button/sounds/beep-07.mp3" type="audio/mpeg">
 </audio>
 
 <script src="/socket.io/socket.io.js"></script>
+
 <script>
   const socket = io(window.location.origin);
   const sound = document.getElementById("alertSound");
+
+  let soundEnabled = false;
+
+  // Enable sound after user click
+  document.body.addEventListener("click", () => {
+    soundEnabled = true;
+    console.log("Sound enabled");
+  });
 
   socket.on("update-devices", (devices) => {
     const container = document.getElementById("devices");
@@ -80,8 +101,10 @@
     container.innerHTML = "";
     count.innerText = devices.length;
 
-    if (devices.length > 0) {
-      sound.play();
+    // 🔊 Play sound when new device connects
+    if (devices.length > 0 && soundEnabled) {
+      sound.currentTime = 0;
+      sound.play().catch(() => {});
     }
 
     devices.forEach(d => {
