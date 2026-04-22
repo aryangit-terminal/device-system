@@ -1,43 +1,83 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Dashboard</title>
+  <title>Advanced Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- Leaflet (map) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
-      background: #020617;
+      background: linear-gradient(135deg,#020617,#0f172a);
       color: #00ffcc;
       font-family: monospace;
+      margin: 0;
+      padding: 16px;
     }
-
-    h1 {
-      text-align: center;
+    h1 { text-align:center; text-shadow:0 0 15px #00ffcc; }
+    .grid {
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
     }
-
-    #map {
-      height: 300px;
-      margin: 20px;
+    #map { height: 280px; border-radius: 12px; }
+    .row {
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
     }
-
+    @media (min-width: 900px){
+      .row { grid-template-columns: 1fr 1fr; }
+    }
     .card {
-      border: 1px solid #00ffcc;
-      margin: 10px;
-      padding: 10px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(0,255,204,0.3);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 0 14px rgba(0,255,204,0.4);
     }
+    .feed img { width:100%; border-radius: 10px; }
+    .stats { text-align:center; font-size:18px; }
+    canvas { background: rgba(255,255,255,0.04); border-radius: 12px; padding: 10px; }
   </style>
 </head>
 
 <body>
 
-<h1>🌍 DEVICE MONITOR</h1>
+<h1>🖥️ REAL-TIME DEVICE MONITOR</h1>
 
-<div id="map"></div>
+<div class="stats">
+  📊 Devices: <span id="count">0</span>
+</div>
 
-<div id="devices"></div>
+<div class="grid">
 
-<audio id="sound">
+  <div id="map" class="card"></div>
+
+  <div class="row">
+    <div class="card">
+      <h3>📷 Camera Feed</h3>
+      <div class="feed">
+        <img id="camFeed" />
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📈 Activity Chart</h3>
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
+  <div id="devices" class="card"></div>
+
+</div>
+
+<!-- Sound -->
+<audio id="beep">
   <source src="https://www.soundjay.com/button/sounds/beep-07.mp3">
 </audio>
 
@@ -46,48 +86,78 @@
 
 <script>
   const socket = io(window.location.origin);
-  const sound = document.getElementById("sound");
+  const beep = document.getElementById("beep");
 
-  let soundEnabled = false;
+  // 🔊 unlock sound on first click
+  let soundReady = false;
+  document.body.addEventListener("click", () => { soundReady = true; }, { once:true });
 
-  document.body.addEventListener("click", () => {
-    soundEnabled = true;
+  // 🤖 AI voice
+  function speak(text){
+    if (!('speechSynthesis' in window)) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1;
+    u.pitch = 1;
+    speechSynthesis.speak(u);
+  }
+
+  // 🌍 Map
+  const map = L.map('map').setView([20,77], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+  // 📊 Chart
+  const ctx = document.getElementById('chart').getContext('2d');
+  const chart = new Chart(ctx, {
+    type:'line',
+    data:{ labels:[], datasets:[{ label:'Devices', data:[] }] }
   });
+  const history = [];
 
-  // 🌍 MAP
-  const map = L.map('map').setView([20, 77], 4);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
-    .addTo(map);
+  let lastCount = 0;
 
   socket.on("update-devices", (devices) => {
     const container = document.getElementById("devices");
-    container.innerHTML = "";
+    const count = document.getElementById("count");
 
-    if (devices.length > 0 && soundEnabled) {
-      sound.play().catch(()=>{});
+    container.innerHTML = "";
+    count.innerText = devices.length;
+
+    // 📊 update chart
+    history.push(devices.length);
+    chart.data.labels.push("");
+    chart.data.datasets[0].data = history;
+    chart.update();
+
+    // 🔊 + 🤖 when new device arrives
+    if (devices.length > lastCount) {
+      if (soundReady) {
+        beep.currentTime = 0;
+        beep.play().catch(()=>{});
+      }
+      speak("New device detected");
     }
+    lastCount = devices.length;
 
     devices.forEach(d => {
-
-      // 🌍 MAP MARKER
       if (d.lat && d.lng) {
-        L.marker([d.lat, d.lng]).addTo(map)
-          .bindPopup(d.device);
+        L.marker([d.lat, d.lng]).addTo(map).bindPopup(d.device);
       }
 
       const div = document.createElement("div");
-      div.className = "card";
-
+      div.style.marginBottom = "10px";
       div.innerHTML = `
-        DEVICE: ${d.device}<br>
-        SCREEN: ${d.screen}<br>
-        LOCATION: ${d.lat ? d.lat.toFixed(3) + ", " + d.lng.toFixed(3) : "Not allowed"}<br>
-        TIME: ${d.time}
+        <b>${d.device}</b><br>
+        Screen: ${d.screen}<br>
+        Location: ${d.lat ? d.lat.toFixed(3)+", "+d.lng.toFixed(3) : "Not allowed"}<br>
+        Time: ${d.time}
       `;
-
       container.appendChild(div);
     });
+  });
+
+  // 📷 camera frames
+  socket.on("camera-frame", (img) => {
+    document.getElementById("camFeed").src = img;
   });
 </script>
 
